@@ -11,25 +11,32 @@ import os
 load_dotenv()
 HF_TOKEN = os.getenv("HUGGINGFACE_API_KEY")
 
-# Initialize InferenceClient for age classification
-age_client = InferenceClient(token=HF_TOKEN)
-
 # Hugging Face API details for AI image detector
 API_URL_DETECTOR = "https://api-inference.huggingface.co/models/umm-maybe/AI-image-detector"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 def query_age(image):
-    # Convert PIL image to bytes (JPEG)
     image = image.convert('RGB')
     image_bytes = io.BytesIO()
     image.save(image_bytes, format='JPEG')
     image_bytes.seek(0)
-    # Pass bytes, not BytesIO object!
-    result = age_client.image_classification(
-        image=image_bytes.getvalue(),
-        model="nateraw/vit-age-classifier"
+
+    response = requests.post(
+        "https://api-inference.huggingface.co/models/nateraw/vit-age-classifier",
+        headers=headers,
+        data=image_bytes.getvalue()
     )
-    return result
+
+    try:
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error contacting Hugging Face: {e}")
+        return None
+    except ValueError:
+        st.error("Error decoding JSON:")
+        st.text(response.text)
+        return None
 
 def query_detector(image_bytes):
     try:
