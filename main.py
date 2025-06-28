@@ -32,9 +32,28 @@ def query_age(image):
     return result
 
 def query_detector(image_bytes):
-    # Send a POST request to the API with image data
-    response = requests.post(API_URL_DETECTOR, headers=headers, data=image_bytes)
-    return response.json()
+    try:
+        response = requests.post(API_URL_DETECTOR, headers=headers, data=image_bytes)
+        response.raise_for_status()
+
+        # Check content-type to ensure it's JSON
+        if "application/json" not in response.headers.get("Content-Type", ""):
+            st.error("API did not return JSON. Raw response:")
+            st.text(response.text)
+            return None
+
+        return response.json()
+
+    except requests.exceptions.HTTPError as http_err:
+        st.error(f"HTTP error occurred: {http_err}")
+    except requests.exceptions.RequestException as req_err:
+        st.error(f"Request failed: {req_err}")
+    except ValueError:
+        st.error("Response is not valid JSON:")
+        st.text(response.text)
+
+    return None
+
 
 def age_classification():
     st.title("Age Classification")
@@ -75,7 +94,7 @@ def ai_image_detector():
 
     if uploaded_file is not None:
         # Display the uploaded image
-        st.image(uploaded_file, caption='Uploaded Image.', use_column_width=True)
+        st.image(uploaded_file, caption='Uploaded Image.', use_container_width=True)
 
         # Convert image to bytes
         image_bytes = uploaded_file.read()
